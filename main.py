@@ -1,8 +1,15 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from typing import Optional, List, Dict
 from pydantic import BaseModel
 
 app = FastAPI()
+
+API_KEY = "mysecretkey"  # Простой API-ключ для авторизации
+
+
+def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
 
 
 class User(BaseModel):
@@ -52,7 +59,7 @@ async def items() -> List[Post]:
 
 
 @app.post('/items/add')
-async def add_item(post: PostCreate) -> Post:
+async def add_item(post: PostCreate, x_api_key: str = Depends(verify_api_key)) -> Post:
     author = next((user for user in users if user['id'] == post.author_id), None)
     if not author:
         raise HTTPException(status_code=404, detail='User not found')
@@ -71,7 +78,7 @@ async def add_item(post: PostCreate) -> Post:
 
 
 @app.get('/items/{id}')
-async def items(id: int) -> Post:
+async def get_item(id: int) -> Post:
     for post in posts:
         if post['id'] == id:
             return Post(**post)
@@ -86,6 +93,4 @@ async def search(post_id: Optional[int] = None) -> Dict[str, Optional[Post]]:
             if post['id'] == post_id:
                 return {'data': Post(**post)}
         raise HTTPException(status_code=404, detail='Post not found')
-
-    else:
-        return {'data': None}
+    return {'data': None}
